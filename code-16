@@ -1,0 +1,141 @@
+1. Detect Private Mode
+You can detect if the browser is in private mode and inform the user that data will not persist after the session ends.
+
+function isPrivateMode() {
+    return new Promise((resolve) => {
+        const testKey = 'testPrivateMode';
+        try {
+            localStorage.setItem(testKey, 'test');
+            localStorage.removeItem(testKey);
+            resolve(false); // Not in private mode
+        } catch (e) {
+            resolve(true); // In private mode
+        }
+    });
+}
+
+isPrivateMode().then((isPrivate) => {
+    if (isPrivate) {
+        console.log('Private mode detected. Data will not persist after the session ends.');
+    } else {
+        console.log('Normal mode detected. Data will persist.');
+    }
+});
+
+
+2. Use Fallback Storage for Private Mode
+If you need to store data temporarily in private mode, you can use an in-memory fallback (like a JavaScript object) instead of IndexedDB.
+
+let inMemoryDB = {}; // Fallback for private mode
+
+function addData(data) {
+    isPrivateMode().then((isPrivate) => {
+        if (isPrivate) {
+            // Use in-memory storage
+            const id = Date.now(); // Generate a unique ID
+            inMemoryDB[id] = data;
+            console.log('Data stored in memory:', inMemoryDB);
+        } else {
+            // Use IndexedDB
+            const transaction = db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.add(data);
+            request.onsuccess = () => {
+                console.log('Data stored in IndexedDB.');
+            };
+        }
+    });
+}
+
+function readData() {
+    isPrivateMode().then((isPrivate) => {
+        if (isPrivate) {
+            // Read from in-memory storage
+            console.log('Data in memory:', inMemoryDB);
+        } else {
+            // Read from IndexedDB
+            const transaction = db.transaction([storeName], 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = (event) => {
+                console.log('Data in IndexedDB:', event.target.result);
+            };
+        }
+    });
+}
+
+
+3. Inform the User
+Let the user know that data will not persist in private mode. This is important for setting expectations.
+
+isPrivateMode().then((isPrivate) => {
+    if (isPrivate) {
+        alert('You are in private mode. Data will not persist after you close the window.');
+    }
+});
+
+
+4. Use SessionStorage as a Fallback
+If you need a slightly more persistent solution in private mode, you can use sessionStorage. Unlike localStorage, sessionStorage works in private mode but is cleared when the session ends.
+
+function addData(data) {
+    isPrivateMode().then((isPrivate) => {
+        if (isPrivate) {
+            // Use sessionStorage
+            const id = Date.now(); // Generate a unique ID
+            sessionStorage.setItem(id, JSON.stringify(data));
+            console.log('Data stored in sessionStorage:', sessionStorage);
+        } else {
+            // Use IndexedDB
+            const transaction = db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.add(data);
+            request.onsuccess = () => {
+                console.log('Data stored in IndexedDB.');
+            };
+        }
+    });
+}
+
+function readData() {
+    isPrivateMode().then((isPrivate) => {
+        if (isPrivate) {
+            // Read from sessionStorage
+            const data = {};
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                data[key] = JSON.parse(sessionStorage.getItem(key));
+            }
+            console.log('Data in sessionStorage:', data);
+        } else {
+            // Read from IndexedDB
+            const transaction = db.transaction([storeName], 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = (event) => {
+                console.log('Data in IndexedDB:', event.target.result);
+            };
+        }
+    });
+}
+
+
+Summary of the Solution
+1. Detect Private Mode:
+- Use a simple check to determine if the browser is in private mode.
+
+2. Fallback Storage:
+- Use inMemoryDB (JavaScript object) or sessionStorage as a fallback for private mode.
+
+3. Inform the User:
+- Notify the user that data will not persist in private mode.
+
+4. Use IndexedDB in Normal Mode:
+- Continue using IndexedDB for persistent storage in normal mode.
+
+
+Why This Works
+- In normal mode, IndexedDB is used for persistent storage.
+- In private mode, the fallback storage ensures your application still works, even though the data is temporary.
+
+Let me know if you need further clarification or help implementing this solution! 😊
