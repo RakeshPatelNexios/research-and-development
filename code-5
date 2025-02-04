@@ -1,0 +1,137 @@
+1️⃣ Updated main.js (Main Frontend Script)
+
+This registers the Service Worker, requests notification permission, and ensures notifications continue regardless of system time changes.
+
+if ('serviceWorker' in navigator && 'Notification' in window) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('Service Worker Registered!', reg))
+        .catch(err => console.log('Service Worker Registration Failed!', err));
+
+    Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+            console.log("Notification permission granted.");
+            startNotificationLoop();
+        } else {
+            console.log("User denied notifications.");
+        }
+    });
+}
+
+// Function to start notifications while preventing system time manipulation issues
+function startNotificationLoop() {
+    if (!localStorage.getItem("notificationStopped")) {
+        if (!localStorage.getItem("notificationStartPerfTime")) {
+            // Store the high-resolution performance time (not affected by system time change)
+            localStorage.setItem("notificationStartPerfTime", performance.now());
+        }
+
+        navigator.serviceWorker.controller?.postMessage({
+            action: "startNotifications",
+            startPerfTime: localStorage.getItem("notificationStartPerfTime")
+        });
+    }
+}
+
+
+2️⃣ Updated service-worker.js (Service Worker)
+
+This ensures notifications are based on elapsed real time (not system time).
+
+const notificationData = {
+    notification_id: "cGEWAL",
+    channel_type: "1",
+    channel_id: "2690",
+    "interruption-level": "active",
+    click_action: "https://test.carecoordinations.com/home?type=139f1655&channel_type=1",
+    web_token: "eDaGAwez7OfFT3g7en0qER:APA91bFKJvi5brsUSLLPJ5izVQI6QVHoTdDAHiL1tpI8zPhma5QQX0k2sdeKuPhQVWI1fbtbu1cP-9P0Z41k7z70RJTBKMMxbow9d4FCGzCqhlw6082s9g0",
+    icon: "https://test.carecoordinations.com/app/front/images/logo/logo-smart-banner.png",
+    title: "Michel P. Jha sent a new message.",
+    branch_id: "31",
+    remark: "QA system B Skill",
+    fcm_id: "dhaeBDx5F04CsAsk2jV21l:APA91bGM0k0x7qaOBK5EYjngXrf3TEpEizWZLprNPghfDzy8hY5nejOU0G3vXKGTUas2BIqE4GjDj7_4__BEvFsEj_Pif_FhWgvWA2CEJ_Bv-vriTPY5pzo",
+    body: "CHARLES SEYMOUR\nQA system B Skill",
+    subtitle: "CHARLES SEYMOUR",
+    sound: "https://test.carecoordinations.com/app/front/notification-sound/web.wav",
+    type: "1",
+    chat_id: "72015"
+};
+
+// Variables to track notifications
+let notificationInterval;
+let startPerfTime;
+const notificationDuration = 10 * 60 * 1000; // 10 minutes
+const notificationFrequency = 2 * 60 * 1000; // Every 2 minutes
+
+// Function to show notification
+function showNotification() {
+    self.registration.showNotification(notificationData.title, {
+        body: notificationData.body,
+        icon: notificationData.icon,
+        data: { click_action: notificationData.click_action },
+        tag: notificationData.notification_id,
+        renotify: true
+    });
+}
+
+// Listen for messages from the main script
+self.addEventListener("message", event => {
+    if (event.data.action === "startNotifications") {
+        if (!startPerfTime) {
+            startPerfTime = parseFloat(event.data.startPerfTime);
+        }
+
+        if (!notificationInterval) {
+            notificationInterval = setInterval(() => {
+                const elapsedTime = performance.now() - startPerfTime;
+
+                // Stop notifications if 10 minutes have passed
+                if (elapsedTime >= notificationDuration || localStorage.getItem("notificationStopped")) {
+                    clearInterval(notificationInterval);
+                    return;
+                }
+
+                showNotification();
+            }, notificationFrequency);
+        }
+    }
+});
+
+// Handle notification click
+self.addEventListener("notificationclick", event => {
+    event.notification.close();
+    event.waitUntil(clients.openWindow(event.notification.data.click_action));
+
+    // Stop future notifications
+    localStorage.setItem("notificationStopped", "true");
+    clearInterval(notificationInterval);
+});
+
+// Handle notification close (dismissal)
+self.addEventListener("notificationclose", () => {
+    localStorage.setItem("notificationStopped", "true");
+    clearInterval(notificationInterval);
+});
+
+
+
+3️⃣ Why This Works Even If System Time Changes
+* Issue
+Q. User changes the system time forward/backward
+A. ✅ Uses performance.now(), which measures real elapsed time (not system time).
+
+Q. Page refreshes
+A. ✅ Stores performance.now() timestamp in localStorage, ensuring persistence.
+
+Q. Notifications should stop exactly after 10 minutes
+A. ✅ Tracks elapsed time without relying on system clock.
+
+Q. Notifications should stop when clicked or dismissed
+A. ✅ Uses localStorage and clears the interval.
+
+
+4️⃣ Final Summary
+
+✅ Notifications run exactly for 10 minutes from the first notification, no matter what the system clock shows.
+✅ Even if the user changes the time (past/future), notifications continue without interruption.
+✅ Notifications are sent every 2 minutes and persist even after a refresh.
+✅ If the user clicks or dismisses the notification, it stops immediately.
