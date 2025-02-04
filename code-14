@@ -1,0 +1,176 @@
+Full Example of IndexedDB Operations
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB Example</title>
+</head>
+<body>
+    <h1>IndexedDB Example</h1>
+    <button onclick="openDB()">Open Database</button>
+    <button onclick="addData()">Add Data</button>
+    <button onclick="readData()">Read Data</button>
+    <button onclick="updateData()">Update Data</button>
+    <button onclick="deleteData()">Delete Data</button>
+    <div id="output"></div>
+
+    <script>
+        let db;
+        const dbName = 'TestDB';
+        const storeName = 'Users';
+
+        // Function to open or create the database
+        function openDB() {
+            const request = indexedDB.open(dbName, 1);
+
+            request.onupgradeneeded = function(event) {
+                db = event.target.result;
+
+                // Create an object store if it doesn't exist
+                if (!db.objectStoreNames.contains(storeName)) {
+                    db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+                    console.log('Object store created.');
+                }
+            };
+
+            request.onsuccess = function(event) {
+                db = event.target.result;
+                console.log('Database opened successfully.');
+            };
+
+            request.onerror = function(event) {
+                console.error('Error opening database:', event.target.error);
+            };
+        }
+
+        // Function to add data to the object store
+        function addData() {
+            if (!db) {
+                console.error('Database is not open.');
+                return;
+            }
+
+            const transaction = db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+
+            const user = { name: 'John Doe', age: 30, email: 'john.doe@example.com' };
+            const request = store.add(user);
+
+            request.onsuccess = function() {
+                console.log('Data added successfully.');
+            };
+
+            request.onerror = function(event) {
+                console.error('Error adding data:', event.target.error);
+            };
+        }
+
+        // Function to read data from the object store
+        function readData() {
+            if (!db) {
+                console.error('Database is not open.');
+                return;
+            }
+
+            const transaction = db.transaction([storeName], 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+
+            request.onsuccess = function(event) {
+                const users = event.target.result;
+                const output = document.getElementById('output');
+                output.innerHTML = '<h2>Users:</h2>';
+                users.forEach(user => {
+                    output.innerHTML += `<p>ID: ${user.id}, Name: ${user.name}, Age: ${user.age}, Email: ${user.email}</p>`;
+                });
+                console.log('Data read successfully.');
+            };
+
+            request.onerror = function(event) {
+                console.error('Error reading data:', event.target.error);
+            };
+        }
+
+        // Function to update data in the object store
+        function updateData() {
+            if (!db) {
+                console.error('Database is not open.');
+                return;
+            }
+
+            const transaction = db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+
+            const user = { id: 1, name: 'John Doe Updated', age: 31, email: 'john.doe.updated@example.com' };
+            const request = store.put(user);
+
+            request.onsuccess = function() {
+                console.log('Data updated successfully.');
+            };
+
+            request.onerror = function(event) {
+                console.error('Error updating data:', event.target.error);
+            };
+        }
+
+        // Function to delete data from the object store
+        function deleteData() {
+            if (!db) {
+                console.error('Database is not open.');
+                return;
+            }
+
+            const transaction = db.transaction([storeName], 'readwrite');
+            const store = transaction.objectStore(storeName);
+
+            const request = store.delete(1);
+
+            request.onsuccess = function() {
+                console.log('Data deleted successfully.');
+            };
+
+            request.onerror = function(event) {
+                console.error('Error deleting data:', event.target.error);
+            };
+        }
+    </script>
+</body>
+</html>
+
+
+Explanation of the Code
+1. Opening/Creating a Database:
+indexedDB.open(dbName, version) is used to open or create a database.
+
+The onupgradeneeded event is triggered when the database is created or its version is upgraded. Here, we create an object store if it doesn't exist.
+
+The onsuccess event is triggered when the database is successfully opened.
+
+2. Adding Data:
+A transaction is created with db.transaction([storeName], 'readwrite') to allow read and write operations.
+
+The add method is used to add a new record to the object store.
+
+3. Reading Data:
+A transaction is created with db.transaction([storeName], 'readonly') to allow read-only operations.
+
+The getAll method is used to retrieve all records from the object store.
+
+4. Updating Data:
+A transaction is created with db.transaction([storeName], 'readwrite') to allow read and write operations.
+
+The put method is used to update an existing record in the object store.
+
+5. Deleting Data:
+A transaction is created with db.transaction([storeName], 'readwrite') to allow read and write operations.
+
+The delete method is used to remove a record from the object store.
+
+Notes:
+- Transactions: All operations in IndexedDB are performed within transactions to ensure data integrity.
+- Object Store: This is where the data is stored, similar to a table in a relational database.
+- KeyPath: The keyPath option in createObjectStore specifies the property that will be used as the key for the records. If autoIncrement is set to true, the key will be automatically generated.
+
+This example should give you a comprehensive understanding of how to use IndexedDB for basic CRUD operations. Let me know if you have any questions! 😊
