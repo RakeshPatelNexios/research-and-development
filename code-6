@@ -1,0 +1,196 @@
+1. Create the Service Worker (sw.js)
+
+self.addEventListener("install", (event) => {
+    console.log("Service Worker installed");
+    self.skipWaiting(); // Activate worker immediately
+});
+
+self.addEventListener("activate", (event) => {
+    console.log("Service Worker activated");
+});
+
+// Listen for 'sync' event when the browser regains network connection
+self.addEventListener("sync", async (event) => {
+    if (event.tag === "sync-message") {
+        event.waitUntil(sendStoredMessages());
+    }
+});
+
+async function sendStoredMessages() {
+    const messages = await getMessagesFromDB();
+    for (const message of messages) {
+        try {
+            let response = await fetch("/submit-message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(message),
+            });
+
+            if (response.ok) {
+                console.log("Message sent successfully:", message);
+                await deleteMessageFromDB(message.id);
+            }
+        } catch (error) {
+            console.log("Failed to send message, will retry later.", error);
+        }
+    }
+}
+
+// IndexedDB helper functions
+function getMessagesFromDB() {
+    return new Promise((resolve) => {
+        let request = indexedDB.open("MessageDB", 1);
+        request.onsuccess = (event) => {
+            let db = event.target.result;
+            let transaction = db.transaction("messages", "readonly");
+            let store = transaction.objectStore("messages");
+            let request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+        };
+    });
+}
+
+function deleteMessageFromDB(id) {
+    return new Promise((resolve) => {
+        let request = indexedDB.open("MessageDB", 1);
+        request.onsuccess = (event) => {
+            let db = event.target.result;
+            let transaction = db.transaction("messages", "readwrite");
+            let store = transaction.objectStore("messages");
+            store.delete(id);
+            resolve();
+        };
+    });
+}
+
+
+
+2. Register the Service Worker in index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Sync Demo</title>
+</head>
+<body>
+    <h1>Background Sync API Demo</h1>
+    <form id="messageForm">
+        <input type="text" id="messageInput" placeholder="Enter message" required>
+        <button type="submit">Send</button>
+    </form>
+
+    <script>
+        if ("serviceWorker" in navigator && "SyncManager" in window) {
+            navigator.serviceWorker.register("sw.js")
+                .then(reg => console.log("Service Worker registered", reg))
+                .catch(err => console.log("Service Worker registration failed", err));
+        }
+
+        document.getElementById("messageForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const message = document.getElementById("messageInput").value;
+            
+            if (navigator.onLine) {
+                try {
+                    let response = await fetch("/submit-message", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ message }),
+                    });
+                    
+                    if (response.ok) {
+                        console.log("Message sent immediately:", message);
+                    } else {
+                        throw new Error("Failed to send, saving for later.");
+                    }
+                } catch (error) {
+                    await saveMessageToDB({ message });
+                    registerSync();
+                }
+            } else {
+                console.log("Offline, saving message:", message);
+                await saveMessageToDB({ message });
+                registerSync();
+            }
+        });
+
+        async function saveMessageToDB(message) {
+            let dbRequest = indexedDB.open("MessageDB", 1);
+            dbRequest.onupgradeneeded = (event) => {
+                let db = event.target.result;
+                if (!db.objectStoreNames.contains("messages")) {
+                    db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
+                }
+            };
+
+            dbRequest.onsuccess = (event) => {
+                let db = event.target.result;
+                let transaction = db.transaction("messages", "readwrite");
+                let store = transaction.objectStore("messages");
+                store.add(message);
+            };
+        }
+
+        function registerSync() {
+            navigator.serviceWorker.ready.then((reg) => {
+                reg.sync.register("sync-message").then(() => {
+                    console.log("Sync registered");
+                }).catch((err) => {
+                    console.log("Sync registration failed", err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+
+3. Create a Simple Backend (server.js)
+
+const express = require("express");
+const app = express();
+
+app.use(express.json());
+
+app.post("/submit-message", (req, res) => {
+    console.log("Received message:", req.body);
+    res.status(200).json({ success: true });
+});
+
+app.listen(3000, () => console.log("Server running on http://localhost:3000"));
+
+
+How It Works
+
+    1. User submits a message.
+        If online, it sends the request immediately.
+        If offline, it stores the message in IndexedDB and registers a sync event.
+
+    2. Service Worker listens for the sync event.
+        When the network is restored, the service worker retrieves stored messages and sends them to the server.
+
+    3. Server receives the message.
+        When the request is successful, the message is deleted from IndexedDB.
+
+
+Test the Background Sync
+
+    1. Start the server:
+        node server.js
+    2. Open the index.html in a browser with service worker support (Chrome, Edge, etc.).
+    3. Open DevTools (F12 > Application > Service Workers).
+    4. Turn off the network (DevTools > Network > Offline).
+    5. Submit a message while offline.
+    6. Go online again, and check the console logs—the message should be sent automatically!
+
+
+Summary
+
+    * IndexedDB stores messages when offline.
+    * Background Sync API triggers when the network is restored.
+    * Service Worker listens for sync events and processes messages.
+
+This approach ensures reliable message delivery, even with network interruptions!
