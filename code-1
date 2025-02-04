@@ -1,0 +1,24 @@
+// Main JavaScript File (main.js)
+
+// Check if the browser supports Web Workers
+if (window.Worker) {
+    const myWorker = new Worker("worker.js");
+
+    // Sending data to the worker
+    myWorker.postMessage("Hello Worker!");
+
+    // Receiving data from the worker
+    myWorker.onmessage = function(event) {
+        console.log("Message from Worker:", event.data);
+    };
+}
+
+// Worker Script (worker.js)
+
+// Listening for messages from the main thread
+onmessage = function(event) {
+    console.log("Message received from main script:", event.data);
+
+    // Sending a response back to the main script
+    postMessage("Hello from Worker!");
+};
