@@ -1,0 +1,106 @@
+Full Example
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Notification Example</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+
+    <h2>Browser Notification Example</h2>
+    
+    <button id="showNotification">Show Notification</button>
+
+    <script>
+        $(document).ready(function() {
+            // Function to request notification permission
+            function requestNotificationPermission() {
+                if (Notification.permission === "default") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === "granted") {
+                            alert("Notification permission granted!");
+                        } else {
+                            alert("Notification permission denied!");
+                        }
+                    });
+                }
+            }
+
+            // Function to show notification
+            function showNotification() {
+                if (Notification.permission === "granted") {
+                    let notification = new Notification("Hello! 📢", {
+                        body: "This is a sample notification.",
+                        icon: "https://via.placeholder.com/100", // Example icon
+                        badge: "https://via.placeholder.com/50", // Small badge icon
+                        vibrate: [200, 100, 200], // Vibration pattern
+                        tag: "sample-notification", // Unique identifier to prevent duplicates
+                        renotify: true // Allows re-notification if a previous one exists
+                    });
+
+                    // Event: When notification is clicked
+                    notification.onclick = function() {
+                        window.focus(); // Focus the window
+                        alert("Notification Clicked!");
+                        notification.close(); // Close after clicking
+                    };
+
+                    // Event: When notification is closed
+                    notification.onclose = function() {
+                        console.log("Notification Closed");
+                    };
+
+                    // Auto-close notification after 5 seconds
+                    setTimeout(() => notification.close(), 5000);
+                } else if (Notification.permission === "default") {
+                    requestNotificationPermission();
+                } else {
+                    alert("Notifications are blocked. Please allow them in browser settings.");
+                }
+            }
+
+            // Button click event to show notification
+            $("#showNotification").click(function() {
+                showNotification();
+            });
+
+            // Request permission on page load (optional)
+            requestNotificationPermission();
+        });
+    </script>
+
+</body>
+</html>
+
+
+
+How It Works:
+Request Permission on Page Load (Optional):
+
+If permission is not granted, it asks the user when the page loads.
+Show Notification on Button Click:
+
+If permission is granted, it creates and shows a notification with:
+Title
+Body text
+Icon and badge
+Vibration effect
+Tag to prevent duplicate notifications
+Auto-close after 5 seconds
+Handle Click Event on Notification:
+
+When clicked, the notification closes, and an alert appears.
+Handle Close Event:
+
+Logs a message when the notification is closed.
+
+
+
+Notes:
+This works only in HTTPS environments or localhost for security reasons.
+If notifications are blocked in browser settings, they won’t appear.
+Works in Chrome, Edge, Firefox, and other modern browsers.
+🚀 Now, clicking the button will trigger a real browser notification! Let me know if you need improvements. 😃
