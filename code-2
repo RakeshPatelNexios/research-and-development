@@ -1,0 +1,51 @@
+// Registering the Service Worker in JavaScript (main.js)
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+    .then(reg => console.log('Service Worker Registered!', reg))
+    .catch(err => console.log('Service Worker Registration Failed!', err));
+}
+
+// Service Worker Script (service-worker.js)
+
+const CACHE_NAME = "my-cache-v1";
+const urlsToCache = [
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/script.js',
+    '/images/logo.png'
+];
+
+// Install Event: Caching assets
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.addAll(urlsToCache);
+        })
+    );
+});
+
+// Activate Event: Cleanup old caches
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cache => {
+                    if (cache !== CACHE_NAME) {
+                        return caches.delete(cache);
+                    }
+                })
+            );
+        })
+    );
+});
+
+// Fetch Event: Serve cached content when offline
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request).then(response => {
+            return response || fetch(event.request);
+        })
+    );
+});
